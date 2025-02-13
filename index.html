@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<!-- Webpage which generates nice lineup graphics from a kabaddi squad csv 
+Made by Alex Ogden and ChatGPT (cringe ik) Feb 2025 -->
+ 
+
+<head>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .scroll-menu {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        .drag-container {
+            margin-top: 20px;
+        }
+        .draggable-list {
+            list-style: none;
+            padding: 0;
+            border: 1px solid #ccc;
+            min-height: 50px;
+            background: #2C2E29;
+            color: black;
+        }
+        .draggable-item {
+            padding: 8px;
+            margin: 4px;
+            background: #F9F9F9;
+            cursor: grab;
+            border: 1px solid #aaa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .captain-button {
+            background-color: #2C2E29;
+            color: white;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .large-button {
+            width: 100%;
+            font-size: 30px;
+        }
+
+        input[type=radio] {
+            border: 0px;
+            width: 0.9em;
+            height: 0.9em;
+        }
+        input[type="checkbox"] {
+            width: 1em;
+            height: 1em;
+        }
+        #generateImage {    
+            display: none; /* Hide image generation at the start, when no names selected */
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Kabaddi Lineup Generator</h1>
+    <h3>Choose Gender</h3>
+    <label><input type="radio" name="gender" value="men" checked> Men</label>
+    <label><input type="radio" name="gender" value="women"> Women</label>
+    <h3>Select Players:</h3>
+    <div class="scroll-menu" id="playerSelection"></div>
+
+    <h3>Sort Players:</h3>
+    <select id="sortOrder">
+        <option value="default">Custom Order</option>
+        <option value="number">Sort by Squad Number</option>
+        <option value="name">Sort by Name</option>
+    </select>
+
+    <div class="drag-container">
+        <ul class="draggable-list" id="selectedPlayersList"></ul>
+    </div>
+
+    <h3>Team:</h3>
+    <label><input type="radio" name="team" value="" checked> None</label>
+    <label><input type="radio" name="team" value="A" > A</label>
+    <label><input type="radio" name="team" value="B"> B</label>
+
+    <button id="generateImage" class="large-button">
+        Generate Image
+    </button>
+
+    <canvas id="lineupCanvas" width="1080" height="1350"></canvas>
+
+    <script>
+        // Generate dictionary from squad csv
+        async function loadCSV(filePath) {
+            const response = await fetch(filePath);
+            const text = await response.text();
+            return text.split("\n")
+                .map(line => {
+                    const [number, name, full_name] = line.split(",");
+                    return { 
+                        number:     parseInt(String(number).trim()),
+                        name:       String(name).trim(),
+                        full_name:  String(full_name).trim(),
+                        captain:    false  // Initially no player is captain
+                    };
+                })
+        }
+
+        // Load squad .csv for men and women 
+        let menPlayers = [];
+        let womenPlayers = [];
+        async function loadPlayers() {
+            menPlayers = await loadCSV("squad_men.csv");
+            womenPlayers = await loadCSV("squad_women.csv");
+
+            switchTeam();
+        }
+
+        document.addEventListener("DOMContentLoaded", loadPlayers);
+
+        let selectedPlayers = [];
+        let currentPlayers = [];
+        let captainSelected = false; 
+
+        // Get information from user selection on actual website
+        const playerSelectionDiv = document.getElementById("playerSelection");
+        const selectedPlayersList = document.getElementById("selectedPlayersList");
+        const generateButton = document.getElementById("generateImage");
+        const sortOrder = document.getElementById("sortOrder");
+        const canvas = document.getElementById("lineupCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Create tickbox list of all players to choose from
+        function generateCheckboxes() {
+            playerSelectionDiv.innerHTML = "";  
+            currentPlayers.forEach(player => {
+                const label = document.createElement("label");
+                label.innerHTML = `<input type="checkbox" value="${player.name}"> ${player.full_name}`;
+                playerSelectionDiv.appendChild(label);
+                playerSelectionDiv.appendChild(document.createElement("br"));
+            });
+            playerSelectionDiv.addEventListener("change", updateSelectedPlayers);
+        }
+
+        // Send ticked players to draggable list
+        function updateSelectedPlayers() {
+            selectedPlayers = Array.from(document.querySelectorAll("#playerSelection input:checked"))
+                .map(checkbox => currentPlayers.find(player => player.name === checkbox.value));
+
+            updateDraggableList();
+            generateButton.style.display = selectedPlayers.length > 0 ? "block" : "none";
+        }
+
+        // Cant lie, I've no idea how drag and drop works, but this stuff does:
+        function updateDraggableList() {
+            selectedPlayersList.innerHTML = "";
+            selectedPlayers.forEach(player => {
+                const li = document.createElement("li");
+                li.classList.add("draggable-item");
+                li.draggable = true;
+                li.dataset.name = player.name;
+
+                const captainButton = document.createElement("button");
+                captainButton.textContent = "Set Captain";
+                captainButton.classList.add("captain-button");
+
+                if (captainSelected) {
+                    captainButton.style.display = "none"; 
+                }
+
+                captainButton.addEventListener("click", () => selectCaptain(player));
+
+                li.innerHTML = `${player.number} - ${player.name}`;
+                li.appendChild(captainButton);
+
+                if (player.captain && li.innerHTML.slice(-1) != "©") {
+                    li.innerHTML += "  ©"; 
+                }
+
+                selectedPlayersList.appendChild(li);
+            });
+            addDragAndDrop();
+        }
+
+        function addDragAndDrop() {
+            let draggedItem = null;
+
+            document.querySelectorAll(".draggable-item").forEach(item => {
+                item.addEventListener("dragstart", () => {
+                    draggedItem = item;
+                    setTimeout(() => item.style.opacity = "0.5", 0);
+                });
+
+                item.addEventListener("dragend", () => {
+                    setTimeout(() => {
+                        draggedItem.style.opacity = "1";
+                        draggedItem = null;
+                    }, 0);
+                });
+
+                item.addEventListener("dragover", (event) => event.preventDefault());
+
+                item.addEventListener("drop", (event) => {
+                    event.preventDefault();
+                    if (draggedItem !== item) {
+                        let items = Array.from(selectedPlayersList.children);
+                        let fromIndex = items.indexOf(draggedItem);
+                        let toIndex = items.indexOf(item);
+
+                        [selectedPlayers[fromIndex], selectedPlayers[toIndex]] = [selectedPlayers[toIndex], selectedPlayers[fromIndex]];
+
+                        updateDraggableList();
+                    }
+                });
+            });
+        }
+
+        function selectCaptain(player) {
+            selectedPlayers.forEach(p => p.captain = false);  // Reset all captains
+            player.captain = true;
+            captainSelected = true;  // Mark the captain as selected
+            updateDraggableList();  // Re-render the list without captain buttons
+        }
+
+        // Either sort by name or number depending on user choice
+        function sortPlayers() {
+            if (sortOrder.value === "number") {
+                selectedPlayers.sort((a, b) => a.number - b.number);
+            } else if (sortOrder.value === "name") {
+                selectedPlayers.sort((a, b) => a.name.localeCompare(b.name));
+            }
+            updateDraggableList();
+        }
+
+        // When you change gender, switch to current gender play list, reset selected player lists and hide generate button
+        function switchTeam() {
+            const selectedGender = document.querySelector("input[name='gender']:checked").value;
+            currentPlayers = selectedGender === "women" ? womenPlayers : menPlayers;
+            selectedPlayers = [];
+            captainSelected = false;  // Reset captain selection when changing team
+            updateDraggableList();
+            generateButton.style.display = "none";
+            generateCheckboxes();
+        }
+
+        // Create lineup image using HTML canvas
+        function drawImage() {
+            if (selectedPlayers.length === 0) {
+                alert("Please select at least one player.");
+                return;
+            }
+
+            const wo = document.querySelector("input[name='gender']:checked").value === "women" ? "wo" : "";
+            const X = document.querySelector("input[name='team']:checked").value;
+
+            const imageUrl = "background.png";
+            fetch(imageUrl)
+            .then(response => response.blob())
+            .then(blob => {const img = new Image();
+                img.src = URL.createObjectURL(blob); 
+            
+                img.onload = function () {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Title
+                    ctx.fillStyle = "#2C2E29";
+                    ctx.font = "130px Long Shot";
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "top";
+
+                    const y_initial = 400;
+                    const x_title = 50;
+                    const y_between_title = 130;
+
+                    const title_text = `Cambridge University Kabaddi Club`;
+                    title_text.split(" ").forEach((word, index) => {
+                        ctx.fillText(`${word}`.toUpperCase(), x_title, y_initial + index * y_between_title);
+                    });
+                    
+                    // Subtitle
+                    ctx.fillStyle = "white"; 
+                    ctx.font = "60px TW Cen MT Condensed";
+                    ctx.textAlign = "right";
+                    
+                    const y_subtitle = 20;
+                    const x_subtitle = 1050;
+                    ctx.fillText(`${wo}men's ${X} team`.toUpperCase(), x_subtitle, y_subtitle);
+                    
+                    // Lineup
+                    ctx.font = "60px TW Cen MT Condensed";
+                    const y_between_players = 75;
+                    const x_initial = 650;
+                    const x_between_number_and_player = 20;
+                
+                    selectedPlayers.forEach((player, index) => {
+                        const y_player = y_initial + index * y_between_players; 
+                        ctx.textAlign = "right";  
+                        ctx.fillText(`${player.number}`, x_initial, y_player);
+                        ctx.textAlign = "left";  
+
+                        // If the player is the captain, add the copyright symbol
+                        if (player.captain && player.name.slice(-1) != "©") {
+                            player.name = player.name.concat("\t ©")
+                        }                        
+                        ctx.fillText(`${player.name}`.toUpperCase(), x_initial + x_between_number_and_player, y_player);
+
+
+                    });
+                };
+            });
+        }
+
+        generateButton.addEventListener("click", drawImage);
+        sortOrder.addEventListener("change", sortPlayers);
+        document.querySelectorAll("input[name='gender']").forEach(radio => radio.addEventListener("change", switchTeam));
+
+        generateCheckboxes();
+    </script>
+</body>
+</html>
