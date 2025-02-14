@@ -3,8 +3,9 @@
   <head>
     <!-- Webpage which generates nice lineup graphics from a kabaddi squad csv 
     Made by Alex Ogden and ChatGPT (cringe ik) Feb 2025 -->
-    <!-- modified by ailfeee Feb 2025 -->
-    <title>Kabaddi lineup generator</title>
+    <!-- modified by alifeee Feb 2025 -->
+    <!-- Thank you king -->
+    <title>Kabaddi Lineup Generator</title>
     <!-- meta -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,6 +17,8 @@
 
       * {
         box-sizing: border-box;
+        font-size: 100%;
+        font-family: Roboto;        
       }
 
       html {
@@ -37,6 +40,12 @@
       header {
         font-family: "LongShot";
         text-align: center;
+      }
+
+      h1 {
+        font-family: "LongShot";
+        text-align:center;
+        font-size: 40px;
       }
 
       footer {
@@ -121,7 +130,7 @@
       }
 
       #form #title {
-        width: 16rem;
+        width: 20rem;
         text-align: center;
       }
 
@@ -151,6 +160,7 @@
       .players .buttons button {
         width: 15rem;
         padding: 0.25rem;
+        text-align: left;
       }
 
       @media (width <= 900px) {
@@ -286,7 +296,7 @@
 
                 let button = document.createElement("button");
                 button.type = "button";
-                button.innerText = name;
+                button.innerText = `${number} ${long_name}`;
                 button.onclick = function () {
                   addPlayer(name);
                 };
@@ -344,7 +354,7 @@
         players = players.map((player, playerindex) => {
           let p = player.replace(/ ?©/g, "");
           if (selected_index == playerindex) {
-            p += " ©";
+            p += " (c)";
           }
           return p;
         });
@@ -396,7 +406,7 @@
 
     <main>
       <form id="form">
-        <label for="title"> title </label>
+        <label for="title"> Title </label>
         <input
           type="text"
           value="CAMBRIDGE UNIVERSITY KABADDI CLUB"
@@ -406,7 +416,7 @@
 
         <div class="fieldsets">
           <fieldset>
-            <legend>team</legend>
+            <legend>Gender</legend>
             <label for="gender-men">Men</label>
             <input type="radio" name="gender" value="men" id="gender-men" />
             <label for="gender-women">Women</label>
@@ -420,7 +430,7 @@
           </fieldset>
 
           <fieldset>
-            <legend>squad</legend>
+            <legend>Team</legend>
             <label for="team-none">None</label>
             <input type="radio" name="team" value="" id="team-none" checked />
             <label for="team-a">A</label>
@@ -460,7 +470,7 @@
           <div class="buttons"></div>
         </div>
 
-        <button type="submit">make image</button>
+        <button type="submit">Make Image</button>
       </form>
 
       <div class="canvasHolder">
@@ -471,7 +481,7 @@
           onclick="downloadCanvas()"
           disabled
         >
-          download
+          Download
         </button>
       </div>
     </main>

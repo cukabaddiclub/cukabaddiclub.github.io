@@ -1,17 +1,12 @@
 # Kabaddi Lineup Generator
 
-Background images should be 1080x1350 pixels (4:5 ratio for vertical instagram images)
+This is a website which generates nice images of the team lineup, by accessing a csv of the current kabaddi squad.
 
-squad_men and squad_women are .csv files with the first column containing squad number and the second column contianing the names for each player
+Background images should be 1080x1350 pixels (since this is in the 4:5 ratio for vertical instagram images)
 
+squad.csv contains the kabaddi squad, there are 3 columns.
 
-## To do list
+- Number on Shirt
+- Name on shirt
+- Full name
 
-make image pretty
-make text pretty
-get proper font
-
-take user input
-wait for user to select names before making the image 
-
-make mens and womens separate 
