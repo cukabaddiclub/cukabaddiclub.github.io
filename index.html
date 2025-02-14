@@ -18,7 +18,7 @@
       * {
         box-sizing: border-box;
         font-size: 100%;
-        font-family: Roboto;        
+        font-family: Trebuchet MS;        
       }
 
       html {
@@ -350,9 +350,9 @@
           characters += player.length + 1;
         }
 
-        // remove all © marks and add back to the selected row
+        // remove all (c) marks and add back to the selected row
         players = players.map((player, playerindex) => {
-          let p = player.replace(/ ?©/g, "");
+          let p = player.replace(/ ?\(c\)/g, "");
           if (selected_index == playerindex) {
             p += " (c)";
           }
@@ -416,7 +416,7 @@
 
         <div class="fieldsets">
           <fieldset>
-            <legend>Gender</legend>
+            <legend>Squad</legend>
             <label for="gender-men">Men</label>
             <input type="radio" name="gender" value="men" id="gender-men" />
             <label for="gender-women">Women</label>
@@ -440,7 +440,7 @@
           </fieldset>
         </div>
 
-        <span>players</span>
+        <span>Players</span>
         <div class="players">
           <div class="textarea-container">
             <textarea
