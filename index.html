@@ -1,328 +1,488 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<!-- Webpage which generates nice lineup graphics from a kabaddi squad csv 
-Made by Alex Ogden and ChatGPT (cringe ik) Feb 2025 -->
- 
-
-<head>
-    <link rel="stylesheet" href="styles.css">
+  <head>
+    <!-- Webpage which generates nice lineup graphics from a kabaddi squad csv 
+    Made by Alex Ogden and ChatGPT (cringe ik) Feb 2025 -->
+    <!-- modified by ailfeee Feb 2025 -->
+    <title>Kabaddi lineup generator</title>
+    <!-- meta -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-        .scroll-menu {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 10px;
-        }
-        .drag-container {
-            margin-top: 20px;
-        }
-        .draggable-list {
-            list-style: none;
-            padding: 0;
-            border: 1px solid #ccc;
-            min-height: 50px;
-            background: #2C2E29;
-            color: black;
-        }
-        .draggable-item {
-            padding: 8px;
-            margin: 4px;
-            background: #F9F9F9;
-            cursor: grab;
-            border: 1px solid #aaa;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .captain-button {
-            background-color: #2C2E29;
-            color: white;
-            border: none;
-            padding: 5px;
-            cursor: pointer;
-        }
+      @font-face {
+        font-family: "LongShot";
+        src: url("./Long_Shot.ttf");
+      }
 
-        .large-button {
-            width: 100%;
-            font-size: 30px;
-        }
+      * {
+        box-sizing: border-box;
+      }
 
-        input[type=radio] {
-            border: 0px;
-            width: 0.9em;
-            height: 0.9em;
+      html {
+        margin: 0;
+        max-width: 100%;
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        padding: 1rem;
+        color: white;
+        background: #265957;
+        max-width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        font-family: "LongShot";
+        text-align: center;
+      }
+
+      footer {
+        text-align: center;
+        margin-top: auto;
+        padding-bottom: 3rem;
+      }
+
+      a:link {
+        color: #5bf;
+      }
+      a:visited {
+        color: #ccf;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas: "form canvas";
+        gap: 1rem;
+      }
+
+      .canvasHolder {
+        grid-area: canvas;
+        align-self: flex-start;
+        display: flex;
+        flex-direction: column;
+        margin: 1rem;
+        max-width: max-content;
+        position: relative;
+      }
+      .canvasHolder::before {
+        content: "click go!";
+        position: absolute;
+        inset: 0;
+        text-align: center;
+        z-index: -1;
+      }
+      #lineupCanvas {
+        max-height: 70vh;
+        max-width: 100%;
+        border: 2px black solid;
+      }
+      .canvasHolder .download {
+        margin: 1rem auto;
+        width: 10rem;
+        padding: 1rem;
+      }
+
+      #form {
+        margin: 1rem;
+        grid-area: form;
+        justify-self: end;
+        align-self: flex-start;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      #form input {
+        width: max-content;
+      }
+      #form fieldset {
+        width: max-content;
+      }
+      #form .textarea-container {
+        display: flex;
+        flex-direction: column;
+      }
+      #form textarea#players {
+        flex-grow: 1;
+        min-height: 13rem;
+        width: 15rem;
+        resize: both;
+      }
+      #form button[type="submit"] {
+        padding: 1rem;
+        width: 20rem;
+        margin-top: 2rem;
+      }
+
+      #form #title {
+        width: 16rem;
+        text-align: center;
+      }
+
+      .fieldsets {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .players {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .players .textarea-container .sort-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+      }
+      .players .buttons {
+        display: flex;
+        flex-direction: column;
+        width: 15rem;
+        max-height: 16rem;
+        overflow-y: auto;
+      }
+      .players .buttons button {
+        width: 15rem;
+        padding: 0.25rem;
+      }
+
+      @media (width <= 900px) {
+        main {
+          grid-template-columns: 1fr;
+          grid-template-areas: "form" "canvas";
         }
-        input[type="checkbox"] {
-            width: 1em;
-            height: 1em;
+        .canvasHolder {
+          align-self: center;
+          justify-self: center;
         }
-        #generateImage {    
-            display: none; /* Hide image generation at the start, when no names selected */
-            margin-top: 10px;
+        #form {
+          align-self: center;
+          justify-self: center;
         }
+      }
     </style>
-</head>
-
-<body>
-    <h1>Kabaddi Lineup Generator</h1>
-    <h3>Choose Gender</h3>
-    <label><input type="radio" name="gender" value="men" checked> Men</label>
-    <label><input type="radio" name="gender" value="women"> Women</label>
-    <h3>Select Players:</h3>
-    <div class="scroll-menu" id="playerSelection"></div>
-
-    <h3>Sort Players:</h3>
-    <select id="sortOrder">
-        <option value="default">Custom Order</option>
-        <option value="number">Sort by Squad Number</option>
-        <option value="name">Sort by Name</option>
-    </select>
-
-    <div class="drag-container">
-        <ul class="draggable-list" id="selectedPlayersList"></ul>
-    </div>
-
-    <h3>Team:</h3>
-    <label><input type="radio" name="team" value="" checked> None</label>
-    <label><input type="radio" name="team" value="A" > A</label>
-    <label><input type="radio" name="team" value="B"> B</label>
-
-    <button id="generateImage" class="large-button">
-        Generate Image
-    </button>
-
-    <canvas id="lineupCanvas" width="1080" height="1350"></canvas>
-
     <script>
-        // Generate dictionary from squad csv
-        async function loadCSV(filePath) {
-            const response = await fetch(filePath);
-            const text = await response.text();
-            return text.split("\n")
-                .map(line => {
-                    const [number, name, full_name] = line.split(",");
-                    return { 
-                        number:     parseInt(String(number).trim()),
-                        name:       String(name).trim(),
-                        full_name:  String(full_name).trim(),
-                        captain:    false  // Initially no player is captain
-                    };
-                })
-        }
+      document.addEventListener("DOMContentLoaded", () => {
+        const form = document.getElementById("form");
+        form.addEventListener("submit", async (e) => {
+          // prevent normal form submission reloading page
+          e.preventDefault();
 
-        // Load squad .csv for men and women 
-        let menPlayers = [];
-        let womenPlayers = [];
-        async function loadPlayers() {
-            menPlayers = await loadCSV("squad_men.csv");
-            womenPlayers = await loadCSV("squad_women.csv");
+          // template image settings
+          const title_y = 400;
+          const title_x = 50;
+          const title_lineheight = 130;
+          const title_font = "130px LongShot";
+          const title_fill = "#2C2E29";
+          const subtitle_x = 1050;
+          const subtitle_y = 20;
+          const subtitle_font = "60px LongShot";
+          const subtitle_fill = "white";
+          const subtitle_textAlign = "right";
+          const players_x = 650;
+          const players_y = 400;
+          const players_lineheight = 75;
+          const players_number_left_margin = 20;
+          const players_font = "60px LongShot";
 
-            switchTeam();
-        }
+          // get data
+          const data = new FormData(form);
+          const title = data.get("title");
+          const gender = data.get("gender");
+          const team = data.get("team");
+          const players = data.get("players");
 
-        document.addEventListener("DOMContentLoaded", loadPlayers);
+          console.group("Data");
+          console.log("title: ", title);
+          console.log("gender: ", gender);
+          console.log("team: ", team);
+          console.log("players:\n", players);
+          console.groupEnd();
 
-        let selectedPlayers = [];
-        let currentPlayers = [];
-        let captainSelected = false; 
+          // fetch and set up canvas
+          const canvas = document.getElementById("lineupCanvas");
+          const context = canvas.getContext("2d");
+          context.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Get information from user selection on actual website
-        const playerSelectionDiv = document.getElementById("playerSelection");
-        const selectedPlayersList = document.getElementById("selectedPlayersList");
-        const generateButton = document.getElementById("generateImage");
-        const sortOrder = document.getElementById("sortOrder");
-        const canvas = document.getElementById("lineupCanvas");
-        const ctx = canvas.getContext("2d");
+          // image
+          const imageURL = "background.png";
+          const image_response = await fetch(imageURL);
+          const image_blob = await image_response.blob();
+          const image_bitmap = await createImageBitmap(image_blob);
 
-        // Create tickbox list of all players to choose from
-        function generateCheckboxes() {
-            playerSelectionDiv.innerHTML = "";  
-            currentPlayers.forEach(player => {
-                const label = document.createElement("label");
-                label.innerHTML = `<input type="checkbox" value="${player.name}"> ${player.full_name}`;
-                playerSelectionDiv.appendChild(label);
-                playerSelectionDiv.appendChild(document.createElement("br"));
-            });
-            playerSelectionDiv.addEventListener("change", updateSelectedPlayers);
-        }
+          canvas.width = image_bitmap.width;
+          canvas.height = image_bitmap.height;
+          context.drawImage(image_bitmap, 0, 0);
 
-        // Send ticked players to draggable list
-        function updateSelectedPlayers() {
-            selectedPlayers = Array.from(document.querySelectorAll("#playerSelection input:checked"))
-                .map(checkbox => currentPlayers.find(player => player.name === checkbox.value));
+          // title
+          context.fillStyle = title_fill;
+          context.font = title_font;
+          context.textAlign = "left";
+          context.textBaseline = "top";
 
-            updateDraggableList();
-            generateButton.style.display = selectedPlayers.length > 0 ? "block" : "none";
-        }
+          title.split(" ").forEach((word, index) => {
+            let y = title_y + index * title_lineheight;
+            context.fillText(word, title_x, y);
+          });
 
-        // Cant lie, I've no idea how drag and drop works, but this stuff does:
-        function updateDraggableList() {
-            selectedPlayersList.innerHTML = "";
-            selectedPlayers.forEach(player => {
-                const li = document.createElement("li");
-                li.classList.add("draggable-item");
-                li.draggable = true;
-                li.dataset.name = player.name;
+          // subtitle
+          let whichteam = "WOMEN'S";
+          if (gender == "men") whichteam = "MEN'S";
 
-                const captainButton = document.createElement("button");
-                captainButton.textContent = "Set Captain";
-                captainButton.classList.add("captain-button");
+          let squad = "";
+          if (team == "A") squad = "A ";
+          else if (team == "B") squad = "B ";
 
-                if (captainSelected) {
-                    captainButton.style.display = "none"; 
-                }
+          const subtitle = `${whichteam} ${squad}TEAM`;
 
-                captainButton.addEventListener("click", () => selectCaptain(player));
+          context.font = subtitle_font;
+          context.fillStyle = subtitle_fill;
+          context.textAlign = subtitle_textAlign;
+          context.fillText(subtitle, subtitle_x, subtitle_y);
 
-                li.innerHTML = `${player.number} - ${player.name}`;
-                li.appendChild(captainButton);
-
-                if (player.captain && li.innerHTML.slice(-1) != "©") {
-                    li.innerHTML += "  ©"; 
-                }
-
-                selectedPlayersList.appendChild(li);
-            });
-            addDragAndDrop();
-        }
-
-        function addDragAndDrop() {
-            let draggedItem = null;
-
-            document.querySelectorAll(".draggable-item").forEach(item => {
-                item.addEventListener("dragstart", () => {
-                    draggedItem = item;
-                    setTimeout(() => item.style.opacity = "0.5", 0);
-                });
-
-                item.addEventListener("dragend", () => {
-                    setTimeout(() => {
-                        draggedItem.style.opacity = "1";
-                        draggedItem = null;
-                    }, 0);
-                });
-
-                item.addEventListener("dragover", (event) => event.preventDefault());
-
-                item.addEventListener("drop", (event) => {
-                    event.preventDefault();
-                    if (draggedItem !== item) {
-                        let items = Array.from(selectedPlayersList.children);
-                        let fromIndex = items.indexOf(draggedItem);
-                        let toIndex = items.indexOf(item);
-
-                        [selectedPlayers[fromIndex], selectedPlayers[toIndex]] = [selectedPlayers[toIndex], selectedPlayers[fromIndex]];
-
-                        updateDraggableList();
-                    }
-                });
-            });
-        }
-
-        function selectCaptain(player) {
-            selectedPlayers.forEach(p => p.captain = false);  // Reset all captains
-            player.captain = true;
-            captainSelected = true;  // Mark the captain as selected
-            updateDraggableList();  // Re-render the list without captain buttons
-        }
-
-        // Either sort by name or number depending on user choice
-        function sortPlayers() {
-            if (sortOrder.value === "number") {
-                selectedPlayers.sort((a, b) => a.number - b.number);
-            } else if (sortOrder.value === "name") {
-                selectedPlayers.sort((a, b) => a.name.localeCompare(b.name));
+          // players
+          context.font = players_font;
+          players.split("\n").forEach((player, index) => {
+            let y = players_y + index * players_lineheight;
+            let number = player.split(" ").at(0);
+            let name = player;
+            if (Number.isInteger(parseInt(number))) {
+              context.textAlign = "right";
+              context.fillText(
+                number,
+                players_x - players_number_left_margin,
+                y
+              );
+              name = player.split(" ").slice(1).join(" ");
             }
-            updateDraggableList();
-        }
+            context.textAlign = "left";
+            context.fillText(name, players_x, y);
+          });
 
-        // When you change gender, switch to current gender play list, reset selected player lists and hide generate button
-        function switchTeam() {
-            const selectedGender = document.querySelector("input[name='gender']:checked").value;
-            currentPlayers = selectedGender === "women" ? womenPlayers : menPlayers;
-            selectedPlayers = [];
-            captainSelected = false;  // Reset captain selection when changing team
-            updateDraggableList();
-            generateButton.style.display = "none";
-            generateCheckboxes();
-        }
+          // enable download button
+          document.querySelector("button.download").removeAttribute("disabled");
+        });
 
-        // Create lineup image using HTML canvas
-        function drawImage() {
-            if (selectedPlayers.length === 0) {
-                alert("Please select at least one player.");
-                return;
-            }
+        // add player quick-buttons
+        fetch("squad.csv")
+          .then((response) => response.text())
+          .then((csv) => {
+            const buttons_holder = document.querySelector(".players .buttons");
+            csv
+              .split("\n")
+              .slice(1)
+              .forEach((row) => {
+                if (row == "") return;
 
-            const wo = document.querySelector("input[name='gender']:checked").value === "women" ? "wo" : "";
-            const X = document.querySelector("input[name='team']:checked").value;
+                const [number, short_name, long_name, team] = row.split(",");
+                let name = `${number} ${short_name}`;
 
-            const imageUrl = "background.png";
-            fetch(imageUrl)
-            .then(response => response.blob())
-            .then(blob => {const img = new Image();
-                img.src = URL.createObjectURL(blob); 
-            
-                img.onload = function () {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    // Title
-                    ctx.fillStyle = "#2C2E29";
-                    ctx.font = "130px Long Shot";
-                    ctx.textAlign = "left";
-                    ctx.textBaseline = "top";
-
-                    const y_initial = 400;
-                    const x_title = 50;
-                    const y_between_title = 130;
-
-                    const title_text = `Cambridge University Kabaddi Club`;
-                    title_text.split(" ").forEach((word, index) => {
-                        ctx.fillText(`${word}`.toUpperCase(), x_title, y_initial + index * y_between_title);
-                    });
-                    
-                    // Subtitle
-                    ctx.fillStyle = "white"; 
-                    ctx.font = "60px TW Cen MT Condensed";
-                    ctx.textAlign = "right";
-                    
-                    const y_subtitle = 20;
-                    const x_subtitle = 1050;
-                    ctx.fillText(`${wo}men's ${X} team`.toUpperCase(), x_subtitle, y_subtitle);
-                    
-                    // Lineup
-                    ctx.font = "60px TW Cen MT Condensed";
-                    const y_between_players = 75;
-                    const x_initial = 650;
-                    const x_between_number_and_player = 20;
-                
-                    selectedPlayers.forEach((player, index) => {
-                        const y_player = y_initial + index * y_between_players; 
-                        ctx.textAlign = "right";  
-                        ctx.fillText(`${player.number}`, x_initial, y_player);
-                        ctx.textAlign = "left";  
-
-                        // If the player is the captain, add the copyright symbol
-                        if (player.captain && player.name.slice(-1) != "©") {
-                            player.name = player.name.concat("\t ©")
-                        }                        
-                        ctx.fillText(`${player.name}`.toUpperCase(), x_initial + x_between_number_and_player, y_player);
-
-
-                    });
+                let button = document.createElement("button");
+                button.type = "button";
+                button.innerText = name;
+                button.onclick = function () {
+                  addPlayer(name);
                 };
-            });
+
+                buttons_holder.appendChild(button);
+              });
+          });
+
+        // disable captain button on deselect box as then we have no cursor position
+        const textarea = form.querySelector("textarea#players");
+        const captain_button = form.querySelector("button.captain");
+        textarea.addEventListener("focus", (e) => {
+          captain_button.removeAttribute("disabled");
+        });
+        textarea.addEventListener("blur", (e) => {
+          if (e.relatedTarget == captain_button) return;
+          captain_button.setAttribute("disabled", "");
+        });
+
+        // run form on page load
+        form.querySelector('button[type="submit"]').click();
+      });
+
+      function addPlayer(player) {
+        const textarea = document.getElementById("players");
+        // if we are not on a blank line, let's be
+        if (textarea.value != "" && textarea.value.at(-1) != "\n") {
+          textarea.value += "\n";
+        }
+        textarea.value += player;
+      }
+
+      function clear_textarea() {
+        const textarea = document.getElementById("players");
+        textarea.value = "";
+      }
+
+      function set_captain() {
+        const textarea = document.getElementById("players");
+        const cursor_index = textarea.selectionStart;
+        players = textarea.value.split("\n");
+
+        // determine which row was selected by counting characters
+        characters = 0;
+        let selected_index = -1;
+        for (const [playerindex, player] of players.entries()) {
+          if (cursor_index <= characters + player.length) {
+            selected_index = playerindex;
+            break;
+          }
+          characters += player.length + 1;
         }
 
-        generateButton.addEventListener("click", drawImage);
-        sortOrder.addEventListener("change", sortPlayers);
-        document.querySelectorAll("input[name='gender']").forEach(radio => radio.addEventListener("change", switchTeam));
+        // remove all © marks and add back to the selected row
+        players = players.map((player, playerindex) => {
+          let p = player.replace(/ ?©/g, "");
+          if (selected_index == playerindex) {
+            p += " ©";
+          }
+          return p;
+        });
 
-        generateCheckboxes();
+        textarea.value = players.join("\n");
+        textarea.focus();
+      }
+
+      function sort_by(type = "number") {
+        let sort_function = (a, b) => a.localeCompare(b);
+
+        if (type == "number") {
+          sort_function = function (a, b) {
+            let a_numeric = parseInt(a.replace(/[^0-9]/g, ""));
+            let b_numeric = parseInt(b.replace(/[^0-9]/g, ""));
+            if (a_numeric == "" && b_numeric == "") return a.localeCompare(b);
+            else return a_numeric > b_numeric;
+          };
+        } else if (type == "name") {
+          sort_function = function (a, b) {
+            let a_alphabetic = a.replace(/[0-9]/g, "");
+            let b_alphabetic = b.replace(/[0-9]/g, "");
+            return a_alphabetic.localeCompare(b_alphabetic);
+          };
+        } else {
+          return;
+        }
+
+        const textarea = document.getElementById("players");
+        let players = textarea.value.split("\n");
+        players.sort(sort_function);
+
+        textarea.value = players.filter((p) => p != "").join("\n");
+      }
+
+      function downloadCanvas() {
+        let link = document.createElement("a");
+        link.download = "lineup.png";
+        link.href = document.getElementById("lineupCanvas").toDataURL();
+        link.click();
+      }
     </script>
-</body>
+  </head>
+
+  <body>
+    <header>
+      <h1>Kabaddi Lineup Generator</h1>
+    </header>
+
+    <main>
+      <form id="form">
+        <label for="title"> title </label>
+        <input
+          type="text"
+          value="CAMBRIDGE UNIVERSITY KABADDI CLUB"
+          name="title"
+          id="title"
+        />
+
+        <div class="fieldsets">
+          <fieldset>
+            <legend>team</legend>
+            <label for="gender-men">Men</label>
+            <input type="radio" name="gender" value="men" id="gender-men" />
+            <label for="gender-women">Women</label>
+            <input
+              type="radio"
+              name="gender"
+              value="women"
+              id="gender-women"
+              checked
+            />
+          </fieldset>
+
+          <fieldset>
+            <legend>squad</legend>
+            <label for="team-none">None</label>
+            <input type="radio" name="team" value="" id="team-none" checked />
+            <label for="team-a">A</label>
+            <input type="radio" name="team" value="A" id="team-a" />
+            <label for="team-b">B</label>
+            <input type="radio" name="team" value="B" id="team-b" />
+          </fieldset>
+        </div>
+
+        <span>players</span>
+        <div class="players">
+          <div class="textarea-container">
+            <textarea
+              cols="10"
+              id="players"
+              name="players"
+              placeholder="enter players here or click the buttons on the right..."
+            ></textarea>
+            <div class="sort-buttons">
+              <button type="button" onclick="clear_textarea()">clear</button>
+              <button
+                type="button"
+                onclick="set_captain()"
+                class="captain"
+                disabled
+              >
+                set captain
+              </button>
+              <button type="button" onclick='sort_by("number")'>
+                sort (number)
+              </button>
+              <button type="button" onclick='sort_by("name")'>
+                sort (name)
+              </button>
+            </div>
+          </div>
+          <div class="buttons"></div>
+        </div>
+
+        <button type="submit">make image</button>
+      </form>
+
+      <div class="canvasHolder">
+        <canvas id="lineupCanvas" width="1080" height="1350"> </canvas>
+        <button
+          class="download"
+          type="button"
+          onclick="downloadCanvas()"
+          disabled
+        >
+          download
+        </button>
+      </div>
+    </main>
+    <footer>
+      <a href="https://github.com/cukabaddiclub/cukabaddiclub.github.io"
+        >source</a
+      >
+      - players from
+      <a href="https://github.com/cukabaddiclub/cukabaddiclub.github.io"
+        >squad.csv</a
+      >
+    </footer>
+  </body>
 </html>
