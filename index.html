@@ -254,12 +254,10 @@
             }
             context.textAlign = "left";
             context.fillText(name, players_x, y);
-
-            // enable download button
-            document
-              .querySelector("button.download")
-              .removeAttribute("disabled");
           });
+
+          // enable download button
+          document.querySelector("button.download").removeAttribute("disabled");
         });
 
         // add player quick-buttons
