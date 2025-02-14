@@ -104,9 +104,15 @@
       #form fieldset {
         width: max-content;
       }
-      #form textarea {
+      #form .textarea-container {
+        display: flex;
+        flex-direction: column;
+      }
+      #form textarea#players {
+        flex-grow: 1;
+        min-height: 13rem;
         width: 15rem;
-        height: 15rem;
+        resize: both;
       }
       #form button[type="submit"] {
         padding: 1rem;
@@ -129,13 +135,17 @@
         display: flex;
         justify-content: center;
         flex-wrap: wrap;
-        width: min(30rem, 90vw);
+        gap: 0.5rem;
+      }
+      .players .textarea-container .sort-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
       }
       .players .buttons {
         display: flex;
         flex-direction: column;
         width: 15rem;
-        height: 15rem;
+        max-height: 16rem;
         overflow-y: auto;
       }
       .players .buttons button {
@@ -285,6 +295,18 @@
               });
           });
 
+        // disable captain button on deselect box as then we have no cursor position
+        const textarea = form.querySelector("textarea#players");
+        const captain_button = form.querySelector("button.captain");
+        textarea.addEventListener("focus", (e) => {
+          captain_button.removeAttribute("disabled");
+        });
+        textarea.addEventListener("blur", (e) => {
+          if (e.relatedTarget == captain_button) return;
+          captain_button.setAttribute("disabled", "");
+        });
+
+        // run form on page load
         form.querySelector('button[type="submit"]').click();
       });
 
@@ -295,6 +317,67 @@
           textarea.value += "\n";
         }
         textarea.value += player;
+      }
+
+      function clear_textarea() {
+        const textarea = document.getElementById("players");
+        textarea.value = "";
+      }
+
+      function set_captain() {
+        const textarea = document.getElementById("players");
+        const cursor_index = textarea.selectionStart;
+        players = textarea.value.split("\n");
+
+        // determine which row was selected by counting characters
+        characters = 0;
+        let selected_index = -1;
+        for (const [playerindex, player] of players.entries()) {
+          if (cursor_index <= characters + player.length) {
+            selected_index = playerindex;
+            break;
+          }
+          characters += player.length + 1;
+        }
+
+        // remove all © marks and add back to the selected row
+        players = players.map((player, playerindex) => {
+          let p = player.replace(/ ?©/g, "");
+          if (selected_index == playerindex) {
+            p += " ©";
+          }
+          return p;
+        });
+
+        textarea.value = players.join("\n");
+        textarea.focus();
+      }
+
+      function sort_by(type = "number") {
+        let sort_function = (a, b) => a.localeCompare(b);
+
+        if (type == "number") {
+          sort_function = function (a, b) {
+            let a_numeric = parseInt(a.replace(/[^0-9]/g, ""));
+            let b_numeric = parseInt(b.replace(/[^0-9]/g, ""));
+            if (a_numeric == "" && b_numeric == "") return a.localeCompare(b);
+            else return a_numeric > b_numeric;
+          };
+        } else if (type == "name") {
+          sort_function = function (a, b) {
+            let a_alphabetic = a.replace(/[0-9]/g, "");
+            let b_alphabetic = b.replace(/[0-9]/g, "");
+            return a_alphabetic.localeCompare(b_alphabetic);
+          };
+        } else {
+          return;
+        }
+
+        const textarea = document.getElementById("players");
+        let players = textarea.value.split("\n");
+        players.sort(sort_function);
+
+        textarea.value = players.filter((p) => p != "").join("\n");
       }
 
       function downloadCanvas() {
@@ -349,12 +432,31 @@
 
         <span>players</span>
         <div class="players">
-          <textarea
-            cols="10"
-            id="players"
-            name="players"
-            placeholder="enter players here or click the buttons on the right..."
-          ></textarea>
+          <div class="textarea-container">
+            <textarea
+              cols="10"
+              id="players"
+              name="players"
+              placeholder="enter players here or click the buttons on the right..."
+            ></textarea>
+            <div class="sort-buttons">
+              <button type="button" onclick="clear_textarea()">clear</button>
+              <button
+                type="button"
+                onclick="set_captain()"
+                class="captain"
+                disabled
+              >
+                set captain
+              </button>
+              <button type="button" onclick='sort_by("number")'>
+                sort (number)
+              </button>
+              <button type="button" onclick='sort_by("name")'>
+                sort (name)
+              </button>
+            </div>
+          </div>
           <div class="buttons"></div>
         </div>
 
